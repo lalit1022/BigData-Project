@@ -107,14 +107,12 @@ export async function getModelStats() {
  * GET /api/emails
  * Returns: Array of email objects
  */
-export async function getAllEmails() {
+export async function getAllEmails(category = 'all') {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/emails`);
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch emails');
-    }
-    
+    const response = await fetch(
+      `${API_BASE_URL}/api/emails?category=${category}`
+    );
+    if (!response.ok) throw new Error('Failed to fetch emails');
     return await response.json();
   } catch (error) {
     console.error('API Error:', error);

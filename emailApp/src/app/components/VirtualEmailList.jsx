@@ -1,69 +1,84 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { AnimatePresence } from 'motion/react';
 import EmailRow from './EmailRow';
 import EmptyState from './EmptyState';
 
-const ITEM_HEIGHT = 100; // Approximate height of each email row
-const BUFFER_SIZE = 5; // Number of items to render above and below viewport
+const ITEM_HEIGHT = 88;
+const BUFFER_SIZE = 8;
 
-export default function VirtualEmailList({ emails, activeCategory, onOpenClassify, onOpenUpload, onEmailClick }) {
+export default function VirtualEmailList({
+  emails,
+  activeCategory,
+  onOpenClassify,
+  onOpenUpload,
+  onEmailClick
+}) {
   const containerRef = useRef(null);
-  const [scrollTop, setScrollTop] = useState(0);
-  const [containerHeight, setContainerHeight] = useState(0);
+  const scrollTopRef = useRef(0);
+  const rafRef       = useRef(null);
+  const [renderTick, setRenderTick]       = useState(0);
+  const [containerHeight, setContainerHeight] = useState(600);
 
-  const filteredEmails = useMemo(() => 
+  const filteredEmails = useMemo(() =>
     activeCategory === 'all'
       ? emails
-      : emails.filter((email) => email.category === activeCategory),
+      : emails.filter(e => e.category === activeCategory),
     [emails, activeCategory]
   );
 
-  // Update container height
+  // Measure container height with ResizeObserver
   useEffect(() => {
     if (!containerRef.current) return;
-    
-    const updateHeight = () => {
-      if (containerRef.current) {
-        setContainerHeight(containerRef.current.clientHeight);
+    const ro = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        setContainerHeight(entry.contentRect.height);
       }
-    };
-
-    updateHeight();
-    window.addEventListener('resize', updateHeight);
-    return () => window.removeEventListener('resize', updateHeight);
+    });
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
   }, []);
 
   // Scroll to top when category changes
   useEffect(() => {
     if (containerRef.current) {
       containerRef.current.scrollTop = 0;
-      setScrollTop(0);
+      scrollTopRef.current = 0;
+      setRenderTick(t => t + 1);
     }
   }, [activeCategory]);
 
-  // Handle scroll with throttling for performance
-  const handleScroll = useCallback((e) => {
-    setScrollTop(e.target.scrollTop);
+  // Cleanup rAF on unmount
+  useEffect(() => {
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
   }, []);
 
-  // Calculate visible range with buffer
-  const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER_SIZE);
+  // Throttled scroll — rAF prevents snap-back
+  const handleScroll = useCallback((e) => {
+    scrollTopRef.current = e.currentTarget.scrollTop;
+    if (rafRef.current) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      setRenderTick(t => t + 1);
+    });
+  }, []);
+
+  const totalHeight = filteredEmails.length * ITEM_HEIGHT;
+  const startIndex  = Math.max(
+    0,
+    Math.floor(scrollTopRef.current / ITEM_HEIGHT) - BUFFER_SIZE
+  );
   const endIndex = Math.min(
     filteredEmails.length,
-    Math.ceil((scrollTop + containerHeight) / ITEM_HEIGHT) + BUFFER_SIZE
+    Math.ceil((scrollTopRef.current + containerHeight) / ITEM_HEIGHT) + BUFFER_SIZE
   );
-
   const visibleEmails = filteredEmails.slice(startIndex, endIndex);
-  const totalHeight = filteredEmails.length * ITEM_HEIGHT;
-  const offsetY = startIndex * ITEM_HEIGHT;
-
-  // Render optimized for large datasets
-  const shouldUseVirtualization = filteredEmails.length > 50;
+  const offsetY       = startIndex * ITEM_HEIGHT;
 
   if (filteredEmails.length === 0) {
     return (
       <div className="flex-1 overflow-hidden bg-white dark:bg-gray-900">
-        <EmptyState 
+        <EmptyState
           category={activeCategory}
           onOpenClassify={onOpenClassify}
           onOpenUpload={onOpenUpload}
@@ -72,46 +87,49 @@ export default function VirtualEmailList({ emails, activeCategory, onOpenClassif
     );
   }
 
-  if (!shouldUseVirtualization) {
-    // For small lists, render normally with animations
+  // Small list — render normally
+  if (filteredEmails.length <= 50) {
     return (
-      <div 
+      <div
         ref={containerRef}
-        className="flex-1 overflow-y-auto bg-white dark:bg-gray-900 transition-colors scroll-smooth"
+        className="flex-1 overflow-y-auto bg-white dark:bg-gray-900 transition-colors"
         onScroll={handleScroll}
       >
-        <AnimatePresence mode="popLayout">
-          {filteredEmails.map((email, index) => (
-            <EmailRow key={email.id} email={email} index={index} onEmailClick={onEmailClick} />
-          ))}
-        </AnimatePresence>
+        {filteredEmails.map((email, index) => (
+          <EmailRow
+            key={email.id ?? index}
+            email={email}
+            index={index}
+            onEmailClick={onEmailClick}
+          />
+        ))}
       </div>
     );
   }
 
-  // For large lists, use virtualization
+  // Large list — virtualized
   return (
-    <div 
+    <div
       ref={containerRef}
       className="flex-1 overflow-y-auto bg-white dark:bg-gray-900 transition-colors"
       onScroll={handleScroll}
-      style={{ 
-        scrollBehavior: 'smooth',
-        contain: 'strict'
-      }}
+      style={{ contain: 'strict' }}
     >
       <div style={{ height: `${totalHeight}px`, position: 'relative' }}>
-        <div 
-          style={{ 
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
             transform: `translateY(${offsetY}px)`,
-            willChange: 'transform'
           }}
         >
           {visibleEmails.map((email, idx) => (
-            <EmailRow 
-              key={email.id} 
-              email={email} 
-              index={startIndex + idx} 
+            <EmailRow
+              key={email.id ?? (startIndex + idx)}
+              email={email}
+              index={startIndex + idx}
               onEmailClick={onEmailClick}
             />
           ))}

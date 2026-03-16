@@ -300,26 +300,63 @@ function AppContent() {
   // Poll Flask every 2 seconds while pipeline is running
   useEffect(() => {
     if (!pipelineRunning) return;
-
     const interval = setInterval(async () => {
       const statusData = await getPipelineStatus(pipelineJobId);
-
       if (statusData && statusData.status === "done") {
         clearInterval(interval);
         setPipelineRunning(false);
-
-        // Fetch real emails from MongoDB
         const realEmails = await getAllEmails();
-
         if (realEmails && realEmails.length > 0) {
-          setEmails(realEmails);
-          setIsRealData(true);
+          const bulkEmails = realEmails.filter(
+            (e) => e.source && e.source.startsWith("bulk_"),
+          );
+          if (bulkEmails.length > 0) {
+            setEmails(bulkEmails);
+            setIsRealData(true);
+          }
         }
       }
+      // ADD THIS — stop skeleton on error too
+      if (statusData && statusData.status === "error") {
+        clearInterval(interval);
+        setPipelineRunning(false);
+      }
     }, 2000);
-
     return () => clearInterval(interval);
   }, [pipelineRunning, pipelineJobId]);
+
+  useEffect(() => {
+    async function loadInitialEmails() {
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/emails`,
+        );
+        if (!res.ok) throw new Error("Flask not available");
+
+        const data = await res.json();
+
+        // Only switch to real data if bulk emails exist
+        // Filter out single-classified emails for initial load
+        const bulkEmails = data.filter(
+          (e) => e.source && e.source.startsWith("bulk_"),
+        );
+
+        if (bulkEmails.length > 0) {
+          setEmails(bulkEmails);
+          setIsRealData(true);
+          console.log(`Loaded ${bulkEmails.length} bulk classified emails`);
+        } else {
+          // No bulk emails — stay on mock data
+          console.log("No bulk emails found — showing mock data");
+          setIsRealData(false);
+        }
+      } catch (err) {
+        console.log("Flask not available — using mock data");
+        setIsRealData(false);
+      }
+    }
+    loadInitialEmails();
+  }, []);
 
   const handleClassifyEmail = useCallback((newEmail) => {
     // Add new classified email to the top of the list

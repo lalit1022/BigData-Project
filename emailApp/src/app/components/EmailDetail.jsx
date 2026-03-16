@@ -31,10 +31,6 @@ export default function EmailDetail({ email, onClose }) {
   // Generate full email body (mock content based on preview)
   const fullEmailBody = `${email.preview}
 
-This is an automatically generated full email body for demonstration purposes. In a production environment, this would be the actual email content fetched from your backend.
-
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-
 Best regards,
 ${email.from}`;
 
