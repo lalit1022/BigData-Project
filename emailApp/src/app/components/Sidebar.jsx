@@ -17,7 +17,7 @@ export default function Sidebar({
   isRealData,
 }) {
   const [accuracy, setAccuracy] = useState(0);
-  const targetAccuracy = 94.7;
+  const targetAccuracy = 97.25;
 
   useEffect(() => {
     let current = 0;

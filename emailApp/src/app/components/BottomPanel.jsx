@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import ClassifySingle from './ClassifySingle';
 import BulkUpload from './BulkUpload';
 
-export default function BottomPanel({ isOpen, activeTab, onTabChange, onClose, onClassify, onPipelineStart, onPipelineComplete }) {
+export default function BottomPanel({ isOpen, activeTab, onTabChange, onClose, onClassify, onPipelineStart, onPipelineComplete, onViewResults, onPipelineError }) {
   if (!isOpen) return null;
 
   return (
@@ -63,6 +63,8 @@ export default function BottomPanel({ isOpen, activeTab, onTabChange, onClose, o
               <BulkUpload 
                 onPipelineStart={onPipelineStart}
                 onPipelineComplete={onPipelineComplete}
+                onViewResults={onViewResults}
+                onPipelineError={onPipelineError}
               />
             )}
           </div>

@@ -119,11 +119,16 @@ class MahoutNaiveBayesClassifier:
         category   = LABEL_MAP[best_label]
 
         max_s  = max(scores.values())
-        exps   = {k: math.exp(min(v - max_s, 500)) for k,v in scores.items()}
+        exps   = {k: math.exp(min(v - max_s, 500)) for k, v in scores.items()}
         total  = sum(exps.values())
-        conf   = exps[best_label] / total if total > 0 else 0.75
+        raw_conf = exps[best_label] / total if total > 0 else 0.75
 
-        return category, round(min(conf, 0.99), 3)
+        # Scale from raw softmax range [0.25–1.0] to display range [0.60–0.99]
+        # This gives meaningful variation instead of everything showing 99%
+        scaled_conf = 0.60 + (raw_conf - 0.25) * (0.39 / 0.75)
+        scaled_conf = max(0.60, min(0.99, scaled_conf))
+
+        return category, round(scaled_conf, 3)
 
     def _keyword_fallback(self, text):
         text = text.lower()

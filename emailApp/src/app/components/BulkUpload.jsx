@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import { Upload, FileText, Database, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import PipelineStatus from "./PipelineStatus";
+import NotificationToast from "./NotificationToast";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -12,7 +13,7 @@ const categoryConfig = {
   Spam: { color: "#A32D2D", bgColor: "#FCEBEB" },
 };
 
-export default function BulkUpload({ onPipelineStart, onPipelineComplete }) {
+export default function BulkUpload({ onPipelineStart, onPipelineComplete, onViewResults, onPipelineError }) {
   const [uploadState, setUploadState] = useState("idle");
   const [uploadedTotal, setUploadedTotal] = useState(0);
   const [fileName, setFileName] = useState("");
@@ -31,6 +32,8 @@ export default function BulkUpload({ onPipelineStart, onPipelineComplete }) {
   const [totalClassified, setTotalClassified] = useState(0);
   const fileInputRef = useRef(null);
   const pollRef = useRef(null);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastType, setToastType] = useState("error");
 
   const STEP_RUNNING_LABELS = [
     "Uploading to HDFS...",
@@ -64,11 +67,17 @@ export default function BulkUpload({ onPipelineStart, onPipelineComplete }) {
 
   const animateResults = (finalCounts) => {
     const categories = ["Primary", "Promotions", "Social", "Spam"];
+
+    // Set total immediately so skipped count is correct from the start
+    const total = categories.reduce(
+      (sum, cat) => sum + (finalCounts[cat] || 0),
+      0,
+    );
+    setTotalClassified(total);
+
     setResults({ Primary: 0, Promotions: 0, Social: 0, Spam: 0 });
-    let total = 0;
     categories.forEach((cat) => {
       const target = finalCounts[cat] || 0;
-      total += target;
       if (target === 0) return;
       let count = 0;
       const iv = setInterval(() => {
@@ -77,7 +86,6 @@ export default function BulkUpload({ onPipelineStart, onPipelineComplete }) {
         if (count >= target) clearInterval(iv);
       }, 40);
     });
-    setTotalClassified(total);
   };
 
   const pollPipelineStatus = useCallback(
@@ -114,10 +122,13 @@ export default function BulkUpload({ onPipelineStart, onPipelineComplete }) {
           }
 
           if (data.status === "done") {
+            console.log("DEBUG done — data.total_input:", data.total_input);
             clearInterval(pollRef.current);
             pollRef.current = null;
 
-            if (data.total_input) setUploadedTotal(data.total_input);
+            // Capture final total BEFORE the timeout so it's available when complete renders
+            const finalTotal = data.total_input || 0;
+            setUploadedTotal(finalTotal);
 
             setStepStatuses([
               "Stored in HDFS",
@@ -141,6 +152,7 @@ export default function BulkUpload({ onPipelineStart, onPipelineComplete }) {
             pollRef.current = null;
             setUploadState("error");
             setErrorMessage(data.error || "Pipeline failed");
+            if (onPipelineError) onPipelineError();
           }
         } catch (err) {
           console.error("Polling error:", err);
@@ -153,21 +165,15 @@ export default function BulkUpload({ onPipelineStart, onPipelineComplete }) {
   const processFile = async (file) => {
     if (!file) return;
     if (!file.name.endsWith(".csv")) {
-      alert("Please upload a CSV file");
+      setToastMessage("Please upload a CSV file");
+      setToastType("error");
       return;
     }
 
     // Count rows in CSV for skip stats
     // Reset first, then set new value
     setUploadedTotal(0);
-    try {
-      const text = await file.text();
-      const rows = text.split("\n").filter((r) => r.trim()).length - 1;
-      setUploadedTotal(rows);
-    } catch (e) {
-      setUploadedTotal(0);
-    }
-
+    setTotalClassified(0);
     setFileName(file.name);
     setUploadState("uploading");
     setCurrentStep(-1);
@@ -176,8 +182,6 @@ export default function BulkUpload({ onPipelineStart, onPipelineComplete }) {
     setResults(null);
 
     try {
-      if (onPipelineStart) onPipelineStart();
-
       const formData = new FormData();
       formData.append("file", file);
 
@@ -188,16 +192,20 @@ export default function BulkUpload({ onPipelineStart, onPipelineComplete }) {
       const data = await response.json();
 
       if (!response.ok || data.error) {
-        alert(`Upload failed: ${data.error}`);
+        setToastMessage(`Upload failed: ${data.error}`);
+        setToastType("error");
         setUploadState("idle");
         setFileName("");
         setUploadedTotal(0);
+        if (onPipelineError) onPipelineError();
         return;
       }
 
-      // Store total_input from Flask for skip stats
+      // Only start skeleton AFTER confirmed successful POST
+      if (onPipelineStart) onPipelineStart();
+
       if (data.total_input) {
-        setUploadedTotal(data.total_input);
+        setUploadedTotal(data.total_input || 0);
       }
 
       setJobId(data.job_id);
@@ -206,7 +214,9 @@ export default function BulkUpload({ onPipelineStart, onPipelineComplete }) {
     } catch (error) {
       console.error("Upload error:", error);
       setUploadState("idle");
-      alert("Upload failed. Make sure Flask is running on localhost:5000");
+      setToastMessage("Flask is not running !");
+      setToastType("error");
+      if (onPipelineError) onPipelineError();
     }
   };
 
@@ -357,9 +367,9 @@ export default function BulkUpload({ onPipelineStart, onPipelineComplete }) {
         )}
       </div>
 
-      {/* Pipeline Status — shows real progress from Flask */}
+      {/* Pipeline Status — hide when complete */}
       <AnimatePresence>
-        {uploadState !== "idle" && (
+        {uploadState !== "idle" && uploadState !== "complete" && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -445,16 +455,27 @@ export default function BulkUpload({ onPipelineStart, onPipelineComplete }) {
         )}
       </AnimatePresence>
 
-      {/* Reset Button */}
+      {/* View Results Button */}
       {uploadState === "complete" && (
-        <div className="text-center">
+        <div className="text-center mt-2">
           <button
-            onClick={resetState}
-            className="px-6 py-3 text-sm font-semibold rounded-lg border-2 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm hover:shadow-md"
+            onClick={() => {
+              if (onViewResults) onViewResults();
+              resetState();
+            }}
+            className="px-6 py-3 text-sm font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-sm hover:shadow-md flex items-center gap-2 mx-auto"
           >
-            Upload Another Dataset
+            <span>View Results in Inbox</span>
+            <span>→</span>
           </button>
         </div>
+      )}
+      {toastMessage && (
+        <NotificationToast
+          message={toastMessage}
+          type={toastType}
+          onClose={() => setToastMessage("")}
+        />
       )}
     </div>
   );

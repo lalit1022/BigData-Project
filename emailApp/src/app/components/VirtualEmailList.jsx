@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import EmailRow from './EmailRow';
-import EmptyState from './EmptyState';
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import EmailRow from "./EmailRow";
+import EmptyState from "./EmptyState";
 
 const ITEM_HEIGHT = 88;
 const BUFFER_SIZE = 8;
@@ -10,25 +10,28 @@ export default function VirtualEmailList({
   activeCategory,
   onOpenClassify,
   onOpenUpload,
-  onEmailClick
+  onEmailClick,
+  savedScrollTop,
+  restoreTick,
 }) {
   const containerRef = useRef(null);
-  const scrollTopRef = useRef(0);
-  const rafRef       = useRef(null);
-  const [renderTick, setRenderTick]       = useState(0);
+  const scrollTopRef = useRef(savedScrollTop || 0);
+  const rafRef = useRef(null);
+  const [renderTick, setRenderTick] = useState(0);
   const [containerHeight, setContainerHeight] = useState(600);
 
-  const filteredEmails = useMemo(() =>
-    activeCategory === 'all'
-      ? emails
-      : emails.filter(e => e.category === activeCategory),
-    [emails, activeCategory]
+  const filteredEmails = useMemo(
+    () =>
+      activeCategory === "all"
+        ? emails
+        : emails.filter((e) => e.category === activeCategory),
+    [emails, activeCategory],
   );
 
-  // Measure container height with ResizeObserver
+  // Measure container height
   useEffect(() => {
     if (!containerRef.current) return;
-    const ro = new ResizeObserver(entries => {
+    const ro = new ResizeObserver((entries) => {
       for (const entry of entries) {
         setContainerHeight(entry.contentRect.height);
       }
@@ -37,12 +40,33 @@ export default function VirtualEmailList({
     return () => ro.disconnect();
   }, []);
 
-  // Scroll to top when category changes
+  // Restore saved scroll position when returning from email detail
+  useEffect(() => {
+    if (!restoreTick) return;
+    if (containerRef.current) {
+      const nextScrollTop = Number.isFinite(savedScrollTop)
+        ? savedScrollTop
+        : 0;
+      const shouldSmoothToTop = nextScrollTop === 0;
+      if (typeof containerRef.current.scrollTo === "function") {
+        containerRef.current.scrollTo({
+          top: nextScrollTop,
+          behavior: shouldSmoothToTop ? "smooth" : "auto",
+        });
+      } else {
+        containerRef.current.scrollTop = nextScrollTop;
+      }
+      scrollTopRef.current = nextScrollTop;
+      setRenderTick((t) => t + 1);
+    }
+  }, [restoreTick, savedScrollTop]);
+
+  // Scroll to top when category changes (tab click)
   useEffect(() => {
     if (containerRef.current) {
       containerRef.current.scrollTop = 0;
       scrollTopRef.current = 0;
-      setRenderTick(t => t + 1);
+      setRenderTick((t) => t + 1);
     }
   }, [activeCategory]);
 
@@ -53,27 +77,29 @@ export default function VirtualEmailList({
     };
   }, []);
 
-  // Throttled scroll — rAF prevents snap-back
+  // Throttled scroll
   const handleScroll = useCallback((e) => {
-    scrollTopRef.current = e.currentTarget.scrollTop;
+    const top = e.currentTarget.scrollTop;
+    scrollTopRef.current = top;
     if (rafRef.current) return;
     rafRef.current = requestAnimationFrame(() => {
       rafRef.current = null;
-      setRenderTick(t => t + 1);
+      setRenderTick((t) => t + 1);
     });
   }, []);
 
   const totalHeight = filteredEmails.length * ITEM_HEIGHT;
-  const startIndex  = Math.max(
+  const startIndex = Math.max(
     0,
-    Math.floor(scrollTopRef.current / ITEM_HEIGHT) - BUFFER_SIZE
+    Math.floor(scrollTopRef.current / ITEM_HEIGHT) - BUFFER_SIZE,
   );
   const endIndex = Math.min(
     filteredEmails.length,
-    Math.ceil((scrollTopRef.current + containerHeight) / ITEM_HEIGHT) + BUFFER_SIZE
+    Math.ceil((scrollTopRef.current + containerHeight) / ITEM_HEIGHT) +
+      BUFFER_SIZE,
   );
   const visibleEmails = filteredEmails.slice(startIndex, endIndex);
-  const offsetY       = startIndex * ITEM_HEIGHT;
+  const offsetY = startIndex * ITEM_HEIGHT;
 
   if (filteredEmails.length === 0) {
     return (
@@ -87,7 +113,6 @@ export default function VirtualEmailList({
     );
   }
 
-  // Small list — render normally
   if (filteredEmails.length <= 50) {
     return (
       <div
@@ -100,25 +125,24 @@ export default function VirtualEmailList({
             key={email.id ?? index}
             email={email}
             index={index}
-            onEmailClick={onEmailClick}
+            onEmailClick={(email) => onEmailClick(email, scrollTopRef.current)}
           />
         ))}
       </div>
     );
   }
 
-  // Large list — virtualized
   return (
     <div
       ref={containerRef}
       className="flex-1 overflow-y-auto bg-white dark:bg-gray-900 transition-colors"
       onScroll={handleScroll}
-      style={{ contain: 'strict' }}
+      style={{ contain: "strict" }}
     >
-      <div style={{ height: `${totalHeight}px`, position: 'relative' }}>
+      <div style={{ height: `${totalHeight}px`, position: "relative" }}>
         <div
           style={{
-            position: 'absolute',
+            position: "absolute",
             top: 0,
             left: 0,
             right: 0,
@@ -127,10 +151,12 @@ export default function VirtualEmailList({
         >
           {visibleEmails.map((email, idx) => (
             <EmailRow
-              key={email.id ?? (startIndex + idx)}
+              key={email.id ?? startIndex + idx}
               email={email}
               index={startIndex + idx}
-              onEmailClick={onEmailClick}
+              onEmailClick={(email) =>
+                onEmailClick(email, scrollTopRef.current)
+              }
             />
           ))}
         </div>

@@ -5,6 +5,7 @@ import subprocess
 import threading
 import uuid
 import random
+import pandas as pd
 from datetime import datetime
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify
@@ -22,7 +23,6 @@ db         = client["email_classifier"]
 emails_col = db["emails"]
 
 # ── Load Mahout classifier at startup ───────────────────────
-from mahout_classifier import get_classifier
 print("Loading Mahout classifier...")
 _clf = get_classifier()
 print("Mahout classifier ready!")
@@ -212,8 +212,8 @@ def start_pipeline():
         body_idx    = cols.index('body')
 
         # Count total rows
-        with open(upload_path, 'r', encoding='utf-8', errors='ignore') as f:
-            total_rows = sum(1 for _ in f) - 1  # minus header
+        df_count = pd.read_csv(upload_path, usecols=['subject', 'body'])
+        total_rows = len(df_count.dropna(subset=['subject', 'body']))
 
         print(f"CSV validated: {total_rows} rows, subject=col{subject_idx}, body=col{body_idx}")
 
@@ -222,15 +222,22 @@ def start_pipeline():
         return jsonify({'error': f'Could not read CSV: {str(e)}'}), 400
 
     # ── If columns are in wrong order, rewrite CSV ───────
-    if subject_idx != 0 or body_idx != 1 or len(cols) > 2:
-        try:
-            import pandas as pd
-            df = pd.read_csv(upload_path)
-            df_clean = df[['subject', 'body']].copy()
-            df_clean.to_csv(upload_path, index=False)
-            print(f"CSV rewritten: kept subject+body, dropped extra columns")
-        except Exception as e:
-            print(f"CSV rewrite failed: {e}")
+    try:
+        # Always reread with pandas for consistent handling
+        df = pd.read_csv(upload_path)
+        df.columns = [c.strip().lower() for c in df.columns]
+
+        # Keep optional metadata columns if present
+        keep_cols = ['subject', 'body']
+        for col in ['from', 'sender', 'date', 'time']:
+            if col in df.columns:
+                keep_cols.append(col)
+
+        df_clean = df[keep_cols].copy()
+        df_clean.to_csv(upload_path, index=False)
+        print(f"CSV rewritten: kept columns {keep_cols}")
+    except Exception as e:
+        print(f"CSV rewrite failed: {e}")
 
     pipeline_jobs[job_id] = {
         'status':       'started',
@@ -365,11 +372,14 @@ def classify_and_save(lines, job_id):
         line = line.strip()
         if not line or '|||' not in line:
             continue
-        parts = line.split('|||', 1)
+        parts = line.split('|||')
         if len(parts) < 2:
             continue
-        subject = parts[0].strip()
-        cleaned = parts[1].strip()
+        subject  = parts[0].strip()
+        cleaned  = parts[1].strip()
+        # Use real sender/time if provided by mapper, else fallback
+        sender   = parts[2].strip() if len(parts) > 2 and parts[2].strip() else 'Email Dataset'
+        time_val = parts[3].strip() if len(parts) > 3 and parts[3].strip() else 'Classified'
         if len(cleaned.split()) < 3:
             continue
 
@@ -381,13 +391,13 @@ def classify_and_save(lines, job_id):
                   if len(cleaned.split()) > 15 else cleaned
 
         docs.append({
-            'from':       'Email Dataset',
-            'initials':   category[:2].upper(),
+            'from':       sender,
+            'initials':   sender[:2].upper() if sender != 'Email Dataset' else category[:2].upper(),
             'subject':    subject[:80] if subject else cleaned[:60],
             'preview':    preview,
             'category':   category,
             'confidence': round(confidence, 3),
-            'time':       'Classified',
+            'time':       time_val,
             'unread':     False,
             'source':     f'bulk_{job_id}',
             'created_at': datetime.utcnow()
@@ -395,7 +405,7 @@ def classify_and_save(lines, job_id):
         counts[category] += 1
 
     if docs:
-        emails_col.delete_many({'source': {'$regex': '^bulk_'}})
+        # emails_col.delete_many({'source': {'$regex': '^bulk_'}})
         emails_col.insert_many(docs)
         print(f"MongoDB: inserted {len(docs)} emails")
         for cat, c in counts.items():

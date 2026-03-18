@@ -15,16 +15,20 @@ STOPWORDS = {
 content = sys.stdin.read()
 reader  = csv.reader(io.StringIO(content))
 
-# Read header to find column positions
 header = next(reader, None)
 if header is None:
     sys.exit(0)
 
 cols = [c.strip().lower() for c in header]
 
-# Find subject and body indices flexibly
 subject_idx = cols.index('subject') if 'subject' in cols else 0
 body_idx    = cols.index('body')    if 'body'    in cols else 1
+
+# Optional metadata columns
+from_idx = cols.index('from')   if 'from'   in cols else -1
+sender_idx = cols.index('sender') if 'sender' in cols else -1
+time_idx = cols.index('time')   if 'time'   in cols else -1
+date_idx = cols.index('date')   if 'date'   in cols else -1
 
 for row in reader:
     try:
@@ -33,6 +37,19 @@ for row in reader:
 
         subject = str(row[subject_idx]).strip()
         body    = str(row[body_idx]).strip()
+
+        # Extract optional metadata — use first available
+        sender = ''
+        if from_idx >= 0 and from_idx < len(row):
+            sender = str(row[from_idx]).strip()
+        elif sender_idx >= 0 and sender_idx < len(row):
+            sender = str(row[sender_idx]).strip()
+
+        time_val = ''
+        if time_idx >= 0 and time_idx < len(row):
+            time_val = str(row[time_idx]).strip()
+        elif date_idx >= 0 and date_idx < len(row):
+            time_val = str(row[date_idx]).strip()
 
         text = (subject + " " + body).lower()
         text = re.sub(r'<[^>]+>', ' ', text)
@@ -47,8 +64,13 @@ for row in reader:
         if len(filtered) < 2:
             continue
 
-        safe_subject = subject.replace('|||',' ').replace('\n',' ').replace('\r',' ')
-        print(f"{safe_subject}|||{cleaned}")
+        # Sanitize all fields — strip ||| and newlines
+        safe_subject = subject.replace('|||', ' ').replace('\n', ' ').replace('\r', ' ')
+        safe_sender  = sender.replace('|||', ' ').replace('\n', ' ').replace('\r', ' ')
+        safe_time    = time_val.replace('|||', ' ').replace('\n', ' ').replace('\r', ' ')
+
+        # Output format: subject|||cleaned|||sender|||time
+        print(f"{safe_subject}|||{cleaned}|||{safe_sender}|||{safe_time}")
 
     except Exception:
         continue

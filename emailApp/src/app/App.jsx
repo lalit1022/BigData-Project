@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence } from "motion/react";
 import { Sun, Moon } from "lucide-react";
 import Sidebar from "./components/Sidebar";
@@ -8,7 +8,6 @@ import EmailListSkeleton from "./components/EmailListSkeleton";
 import BottomPanel from "./components/BottomPanel";
 import ModelStats from "./components/ModelStats";
 import { getAllEmails, getPipelineStatus } from "./api";
-
 // Theme Toggle Component
 function ThemeToggle() {
   const [theme, setTheme] = useState(() => {
@@ -288,7 +287,8 @@ function AppContent() {
   // Pipeline state
   const [pipelineRunning, setPipelineRunning] = useState(false);
   const [pipelineJobId, setPipelineJobId] = useState(null);
-
+  const savedScrollRef = useRef(0);
+  const [restoreTick, setRestoreTick] = useState(0);
   // Calculate category counts dynamically
   const categoryCounts = calculateCategoryCounts(emails);
 
@@ -379,6 +379,18 @@ function AppContent() {
 
   const handleCloseEmailDetail = useCallback(() => {
     setSelectedEmail(null);
+    setRestoreTick((t) => t + 1);
+  }, []);
+
+  const handleCategorySelect = useCallback((category) => {
+    setActiveCategory(category);
+    savedScrollRef.current = 0;
+    setRestoreTick((t) => t + 1);
+  }, []);
+
+  const handleEmailClick = useCallback((email, scrollTop) => {
+    savedScrollRef.current = scrollTop;
+    setSelectedEmail(email);
   }, []);
 
   const handleShowModelStats = useCallback(() => {
@@ -396,7 +408,7 @@ function AppContent() {
           <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] flex-1 overflow-hidden">
             <Sidebar
               activeCategory={activeCategory}
-              onCategoryChange={setActiveCategory}
+              onCategoryChange={handleCategorySelect}
               categoryCounts={categoryCounts}
               onShowModelStats={handleShowModelStats}
               isRealData={isRealData}
@@ -453,9 +465,7 @@ function AppContent() {
                   (tab) => (
                     <button
                       key={tab}
-                      onClick={() => {
-                        setActiveCategory(tab);
-                      }}
+                      onClick={() => handleCategorySelect(tab)}
                       className={`tab px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-all duration-200 ${
                         activeCategory === tab
                           ? "text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400"
@@ -471,19 +481,33 @@ function AppContent() {
               {/* Email List or Email Detail - Scrollable */}
               {pipelineRunning ? (
                 <EmailListSkeleton />
-              ) : selectedEmail ? (
-                <EmailDetail
-                  email={selectedEmail}
-                  onClose={handleCloseEmailDetail}
-                />
               ) : (
-                <VirtualEmailList
-                  emails={emails}
-                  activeCategory={activeCategory}
-                  onOpenClassify={() => handleOpenPanel("single")}
-                  onOpenUpload={() => handleOpenPanel("bulk")}
-                  onEmailClick={setSelectedEmail}
-                />
+                <div className="flex-1 overflow-hidden relative">
+                  {/* Always mounted — preserves scroll position */}
+                  <div
+                    style={{
+                      display: selectedEmail ? "none" : "flex",
+                      flexDirection: "column",
+                      height: "100%",
+                    }}
+                  >
+                    <VirtualEmailList
+                      emails={emails}
+                      activeCategory={activeCategory}
+                      onOpenClassify={() => handleOpenPanel("single")}
+                      onOpenUpload={() => handleOpenPanel("bulk")}
+                      onEmailClick={handleEmailClick}
+                      savedScrollTop={savedScrollRef.current}
+                      restoreTick={restoreTick}
+                    />
+                  </div>
+                  {selectedEmail && (
+                    <EmailDetail
+                      email={selectedEmail}
+                      onClose={handleCloseEmailDetail}
+                    />
+                  )}
+                </div>
               )}
 
               {/* Footer - Fixed */}
@@ -508,6 +532,20 @@ function AppContent() {
         onClassify={handleClassifyEmail}
         onPipelineStart={handlePipelineStart}
         onPipelineComplete={handlePipelineComplete}
+        onPipelineError={() => setPipelineRunning(false)}
+        onViewResults={async () => {
+          setShowPanel(false);
+          const realEmails = await getAllEmails();
+          if (realEmails && realEmails.length > 0) {
+            const bulkEmails = realEmails.filter(
+              (e) => e.source && e.source.startsWith("bulk_"),
+            );
+            if (bulkEmails.length > 0) {
+              setEmails(bulkEmails);
+              setIsRealData(true);
+            }
+          }
+        }}
       />
 
       {/* Model Stats Modal */}

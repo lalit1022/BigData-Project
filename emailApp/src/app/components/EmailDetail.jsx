@@ -64,18 +64,30 @@ ${email.from}`;
             {email.subject}
           </h1>
 
-          {/* Category Badge */}
-          <div className="mb-6">
+          {/* Category + Confidence */}
+          <div className="flex items-center gap-3 mb-6">
             <span
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium"
-              style={{
-                backgroundColor: config.bgColor,
-                color: config.textColor
-              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+              style={{ backgroundColor: config.bgColor, color: config.textColor }}
             >
               <Mail size={12} />
               {email.category}
             </span>
+            {email.confidence && (
+              <span
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+                style={{
+                  color: email.confidence >= 0.90 ? '#0F6E56'
+                       : email.confidence >= 0.75 ? '#185FA5'
+                       : '#854F0B',
+                  backgroundColor: email.confidence >= 0.90 ? '#E1F5EE'
+                                 : email.confidence >= 0.75 ? '#E6F1FB'
+                                 : '#FAEEDA'
+                }}
+              >
+                {(email.confidence * 100).toFixed(0)}% confidence
+              </span>
+            )}
           </div>
 
           {/* Sender Info */}

@@ -25,7 +25,8 @@ export async function classifySingleEmail(emailData) {
   } catch (error) {
     console.error('API Error:', error);
     // Fallback to client-side classification for demo
-    return mockClassifySingle(emailData);
+    // return mockClassifySingle(emailData);
+    throw new Error('Flask server is not running !');
   }
 }
 
@@ -150,16 +151,37 @@ function mockClassifySingle(emailData) {
 }
 
 function mockModelStats() {
+  // Real Mahout testnb results — 9948-email balanced dataset
   return {
-    accuracy: 94.2,
-    precision: 93.8,
-    recall: 94.5,
-    f1_score: 94.1,
-    confusion_matrix: [
-      { actual: 'Primary', predicted: { Primary: 892, Promotions: 12, Social: 8, Spam: 3 } },
-      { actual: 'Promotions', predicted: { Primary: 15, Promotions: 864, Social: 5, Spam: 11 } },
-      { actual: 'Social', predicted: { Primary: 10, Promotions: 8, Social: 876, Spam: 1 } },
-      { actual: 'Spam', predicted: { Primary: 2, Promotions: 5, Social: 1, Spam: 987 } }
-    ]
+    fourClass: {
+      totalTested: 1999,
+      correctlyClassified: 1944,
+      accuracy: 97.25,
+      weightedPrecision: 97.3,
+      weightedRecall: 97.2,
+      weightedF1: 97.2,
+      kappa: 0.9582,
+      confusionMatrix: [
+        [480,   3,  50,  0],
+        [  0, 482,   0,  0],
+        [  1,   1, 511,  0],
+        [  0,   0,   0, 471]
+      ],
+      perClass: {
+        Primary:    { tp: 480, fp: 1,  fn: 53, tn: 1465, precision: 99.8,  recall: 90.1,  f1: 94.7,  support: 533 },
+        Promotions: { tp: 482, fp: 4,  fn: 0,  tn: 1513, precision: 99.2,  recall: 100.0, f1: 99.6,  support: 482 },
+        Social:     { tp: 511, fp: 50, fn: 2,  tn: 1436, precision: 91.1,  recall: 99.6,  f1: 95.2,  support: 513 },
+        Spam:       { tp: 471, fp: 0,  fn: 0,  tn: 1528, precision: 100.0, recall: 100.0, f1: 100.0, support: 471 }
+      }
+    },
+    binary: {
+      totalTested: 1999,
+      correctlyClassified: 1984,
+      accuracy: 99.25,
+      kappa: 0.9834,
+      confusionMatrix: [[1528, 0], [15, 471]],
+      spam: { tp: 471, fp: 0, fn: 0,  tn: 1528, precision: 100.0, recall: 100.0, f1: 100.0, specificity: 100.0 },
+      ham:  { tp: 1528, fp: 0, fn: 15, tn: 471, precision: 100.0, recall: 99.0,  f1: 99.5 }
+    }
   };
 }
