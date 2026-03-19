@@ -64,7 +64,7 @@ export default function Sidebar({
             className="w-8 h-8 rounded-lg shadow-md"
           />
           <span className="text-base font-bold text-gray-900 dark:text-gray-100">
-            MailAI
+            MailClassifyAI
           </span>
         </div>
       </div>

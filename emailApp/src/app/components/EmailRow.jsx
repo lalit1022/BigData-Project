@@ -22,7 +22,7 @@ function EmailRow({ email, index, onEmailClick }) {
     {/* Avatar */}
     <div className="flex items-center">
       <div
-        className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0"
+        className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0"
         style={{ backgroundColor: config.bgColor, color: config.textColor }}
       >
         {email.initials}

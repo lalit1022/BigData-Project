@@ -2,3 +2,6 @@
 @import './tailwind.css';
 @import './theme.css';
 @import './custom.css';
+body {
+  font-family: 'Lexend Deca', sans-serif !important;
+}

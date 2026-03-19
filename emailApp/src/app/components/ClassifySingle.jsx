@@ -10,113 +10,197 @@ const categoryConfig = {
   Spam: { color: "#A32D2D", bgColor: "#FCEBEB" },
 };
 
-const senderPool = [
-  "Sarah Johnson",
-  "Michael Chen",
-  "Amazon Deals",
-  "LinkedIn Notifications",
-  "Netflix",
-  "Twitter Updates",
-  "David Martinez",
-  "Unknown Sender",
-  "Facebook",
-  "Eventbrite",
-  "Uber Eats",
-  "Spotify Premium",
-  "Jennifer Lee",
-  "Robert Kim",
-  "Prize Center",
-  "Security Alert",
-  "Amanda Wilson",
-  "Best Buy",
-  "Flipkart Offers",
-  "Instagram",
-];
-
-// Samples match exact training data patterns for accurate classification
+// Curated samples with realistic sender/subject/body combinations.
+// Keep category-indicative keywords so quick random testing remains reliable.
 const emailSamples = [
-  // Primary — work discussion style
+  // Primary
   {
-    subject: "work discussion project update",
-    body: "hi team please find attached the project update report for this week we have completed the backend integration and are now moving to testing phase please review and provide feedback before friday meeting",
+    from: "Nora Patel",
+    subject: "Project update: API integration completed",
+    body: "Hi team, the API integration is complete and deployed to staging. Please review the endpoint changes before tomorrow's standup and share any blockers by 6 PM.",
   },
   {
-    subject: "meeting scheduled quarterly review",
-    body: "this is to inform you that the quarterly performance review meeting has been scheduled for next monday at 10am please come prepared with your team updates and budget projections for discussion",
+    from: "Finance Ops",
+    subject: "Invoice INV-2048 due on March 28",
+    body: "Hello, this is a reminder that invoice INV-2048 for consulting services is due on March 28. Kindly process payment this week and confirm once done.",
   },
   {
-    subject: "invoice payment due this month",
-    body: "please find attached the invoice for consulting services rendered last month the total amount due is as per the agreement payment is expected within thirty days of receipt thank you",
+    from: "Aarav Mehta",
+    subject: "Rescheduled 1:1 to Thursday",
+    body: "Could we move our 1:1 from Wednesday to Thursday at 11:30 AM? I need to finish the release notes before we review hiring plans.",
   },
   {
-    subject: "casual chat hobbies weekend plans",
-    body: "hey just wanted to catch up and see how things are going with you been a while since we last spoke hope work is treating you well let me know if you want to grab coffee this weekend",
+    from: "HR Team",
+    subject: "Action required: submit reimbursement receipts",
+    body: "Please upload your travel reimbursement receipts in the portal by Friday. Late submissions will be processed in next month's payroll cycle.",
   },
   {
-    subject: "work discussion system maintenance",
-    body: "please be advised that scheduled system maintenance will take place this saturday from midnight to sunday morning during this time all services will be temporarily unavailable we apologize for any inconvenience",
-  },
-
-  // Promotions — offer style
-  {
-    subject: "special offer for sale limited time",
-    body: "we have an exclusive special offer just for you get up to sixty percent off on all products this weekend only free shipping on orders above five hundred use code save60 at checkout hurry offer expires sunday",
+    from: "DevOps Alerts",
+    subject: "Planned maintenance window this Saturday",
+    body: "Scheduled maintenance is planned for Saturday from 12:30 AM to 2:00 AM IST. During this period, dashboard login may be intermittently unavailable.",
   },
   {
-    subject: "flash sale discount shop now",
-    body: "huge flash sale happening now don't miss out on our biggest discount event of the year all categories included electronics fashion home appliances up to seventy percent off shop now before stocks run out",
+    from: "Priya Raman",
+    subject: "Draft contract attached for review",
+    body: "I've attached the latest contract draft with comments from legal. Please review section 4 and 7 before we send it to the client.",
   },
   {
-    subject: "exclusive deal personalized offer",
-    body: "based on your recent purchases we have curated these exclusive deals specially for you premium products at unbeatable prices free delivery guaranteed satisfaction or money back limited stock available order now",
+    from: "Campus Housing Office",
+    subject: "Lease renewal reminder",
+    body: "Your lease renewal window opens next Monday. Submit the renewal form before April 5 to keep your current apartment assignment.",
   },
   {
-    subject: "clearance sale final hours",
-    body: "last chance to grab our clearance sale items prices have been slashed to their lowest ever this is a final clearance before new stock arrives don't miss this opportunity to save big shop now",
-  },
-
-  // Social — notification style
-  {
-    subject: "facebook notification you have new activity",
-    body: "hi someone just liked your recent post on facebook log in now to see who interacted with your content and respond to comments your post is getting a lot of attention this week thanks the facebook team",
-  },
-  {
-    subject: "linkedin notification new connection request",
-    body: "hi you have a new connection request on linkedin john smith who works at microsoft wants to connect with you log in now to accept or decline this request and grow your professional network",
-  },
-  {
-    subject: "twitter notification alex tagged you in photo",
-    body: "hi alex just tagged you in a photo on twitter log in now to see the photo and respond to the tag your tweet about technology trends is getting a lot of retweets and likes this week",
-  },
-  {
-    subject: "instagram notification david sent connection request",
-    body: "hi david just sent you a connection request on instagram log in now to see the details and respond someone also commented on your latest photo check your notifications for more updates thanks instagram team",
-  },
-  {
-    subject: "pinterest notification chris tagged you",
-    body: "hi chris just tagged you in a photo on pinterest log in now to see the details and respond your recent pins are getting lots of saves and your follower count has increased this week thanks pinterest team",
+    from: "Product Team",
+    subject: "Meeting notes: onboarding funnel discussion",
+    body: "Thanks for joining today's onboarding funnel review. Action items are documented in the shared doc, including copy updates and analytics events.",
   },
 
-  // Spam — urgent/prize style
+  // Promotions
   {
-    subject: "claim your money prize winner selected",
-    body: "congratulations you have been selected as the lucky winner of our international prize draw your prize money is ready to be claimed click the link below immediately to verify your identity and collect your winnings",
+    from: "Amazon Deals",
+    subject: "Flash sale: up to 60% off electronics today",
+    body: "Limited-time flash sale is live now. Save up to 60% on headphones, monitors, and smart home devices. Offer ends tonight at 11:59 PM.",
   },
   {
-    subject: "urgent verify your account now",
-    body: "your account has been flagged for suspicious activity and will be suspended within 24 hours unless you verify your identity immediately click here to confirm your details and prevent permanent account closure",
+    from: "Myntra Offers",
+    subject: "Extra 25% OFF with code STYLE25",
+    body: "Refresh your wardrobe with this exclusive offer. Apply code STYLE25 at checkout for an extra 25% discount on selected fashion brands.",
   },
   {
-    subject: "limited time offer free gift selected",
-    body: "you have been randomly selected to receive a free gift worth five hundred dollars as part of our customer appreciation program just pay a small shipping fee to claim your gift act now limited time only",
+    from: "Uber Eats",
+    subject: "Free delivery on your next 3 orders",
+    body: "Hungry? Get free delivery on your next 3 orders above Rs 199. Use promo code EATNOW before Sunday. Terms and conditions apply.",
   },
   {
-    subject: "pre approved loan instant cash",
-    body: "congratulations you are pre approved for an instant personal loan of up to fifty thousand dollars no credit check required no documents needed apply now and receive cash within hours offer expires today",
+    from: "Best Buy",
+    subject: "Weekend deals: laptops from $399",
+    body: "Weekend promotion starts now. Shop laptops, accessories, and TVs with limited-stock discount pricing available through Monday morning.",
   },
   {
-    subject: "you won lottery international prize",
-    body: "dear winner you have won our international lottery draw the prize amount of one million dollars is waiting for you please contact us immediately with your personal details to process your winning claim today",
+    from: "Spotify Premium",
+    subject: "Premium individual plan at 50% for 2 months",
+    body: "Special offer for selected users: get Premium at 50% off for 2 months. Enjoy ad-free music, offline playback, and high-quality audio.",
+  },
+  {
+    from: "Flipkart Offers",
+    subject: "Big Saving Days starts at midnight",
+    body: "Don't miss Big Saving Days. Early access deals include smartphones, appliances, and furniture with additional bank cashback offers.",
+  },
+  {
+    from: "Sephora",
+    subject: "Buy 2 get 1 free: skincare essentials",
+    body: "Stock up on your favorites with our buy 2 get 1 free skincare promotion. Ends in 24 hours. Free shipping on orders above $50.",
+  },
+  {
+    from: "Netflix",
+    subject: "Upgrade offer: Premium at a lower price",
+    body: "For a limited period, upgrade to Premium at a discounted monthly rate. Watch in 4K and stream on more devices with this exclusive deal.",
+  },
+
+  // Social
+  {
+    from: "Instagram",
+    subject: "Aanya started following you",
+    body: "Aanya Sharma started following you on Instagram. See their profile, follow back, and check your latest post comments in notifications.",
+  },
+  {
+    from: "Instagram",
+    subject: "You have 3 new comments",
+    body: "Your reel received 3 new comments and 12 likes in the last hour. Open Instagram to reply and keep the conversation going.",
+  },
+  {
+    from: "LinkedIn Notifications",
+    subject: "Rahul sent you a connection request",
+    body: "Rahul Verma, Senior Engineer at Atlassian, wants to connect with you on LinkedIn. Review their profile and respond to the request.",
+  },
+  {
+    from: "LinkedIn Notifications",
+    subject: "Your post got 42 reactions",
+    body: "People in your network are engaging with your post about data pipelines. See who reacted and replied in your LinkedIn feed.",
+  },
+  {
+    from: "X (Twitter) Notifications",
+    subject: "Maya mentioned you in a post",
+    body: "Maya tagged you in a new post on X. Join the thread and reply to comments from your followers.",
+  },
+  {
+    from: "Facebook",
+    subject: "You have 5 new friend requests",
+    body: "You have 5 pending friend requests on Facebook. Review mutual friends and accept or decline from your notifications tab.",
+  },
+  {
+    from: "Eventbrite",
+    subject: "Your friend is attending Tech Meetup 2026",
+    body: "Arjun and 14 others from your network are attending Tech Meetup 2026. View event updates and RSVP changes on Eventbrite.",
+  },
+  {
+    from: "Reddit",
+    subject: "3 replies to your comment in r/machinelearning",
+    body: "There are 3 new replies to your comment in r/machinelearning. Jump back into the discussion and view upvotes.",
+  },
+
+  // Spam
+  {
+    from: "Prize Center",
+    subject: "Congratulations! Claim your $1,000,000 prize now",
+    body: "You are the selected winner of an international cash prize. To claim your money reward immediately, verify your details at the link below.",
+  },
+  {
+    from: "Secure Banking Alert",
+    subject: "Urgent: verify your account within 24 hours",
+    body: "Suspicious activity has been detected on your account. Your access will be suspended unless you confirm password and card details right now.",
+  },
+  {
+    from: "Loan Desk",
+    subject: "Pre-approved loan with no documents required",
+    body: "Get instant cash up to 50,000 with guaranteed approval and no credit check. Apply now and receive funds in 30 minutes.",
+  },
+  {
+    from: "Gift Redemption",
+    subject: "Free iPhone selected for your number",
+    body: "Your phone number was selected to receive a free iPhone. Pay a small delivery fee now to unlock shipment before this offer expires.",
+  },
+  {
+    from: "Lottery Board",
+    subject: "Winner notice: international lottery payout",
+    body: "You have won an international lottery payout of 750,000 dollars. Send your full name, address, and bank account to process transfer.",
+  },
+  {
+    from: "Crypto Returns",
+    subject: "Double your money in 7 days guaranteed",
+    body: "Exclusive crypto investment opportunity with guaranteed 200 percent return. Limited slots available. Deposit now to secure your profits.",
+  },
+  {
+    from: "Account Security Team",
+    subject: "Final warning: mailbox will be deactivated",
+    body: "Your mailbox storage is full and account will be deactivated today. Click here to re-validate credentials and keep your email active.",
+  },
+  {
+    from: "Tax Refund Office",
+    subject: "Pending tax refund release - action needed",
+    body: "You are eligible for an urgent tax refund. Confirm identity and banking information now to avoid cancellation of refund processing.",
+  },
+
+  // Extra mixed realistic samples to enlarge pool
+  {
+    from: "Customer Success",
+    subject: "Client escalation summary and next steps",
+    body: "Please review the escalation summary for the Northwind account. We need approval on the proposed SLA credits before sharing the final response.",
+  },
+  {
+    from: "Coursera",
+    subject: "Enrollment offer: 40% off annual plan",
+    body: "Upgrade to Coursera Plus annual and save 40% today. Access thousands of courses and certificates with this personalized discount.",
+  },
+  {
+    from: "YouTube",
+    subject: "Your channel got 1,200 new views",
+    body: "Great news! Your latest video is trending with 1,200 new views and 84 comments. See detailed analytics in YouTube Studio.",
+  },
+  {
+    from: "Claim Office",
+    subject: "Immediate response needed to release compensation",
+    body: "Your compensation file is pending and may be revoked. Confirm personal information now to release payment to your account immediately.",
   },
 ];
 
@@ -170,9 +254,12 @@ export default function ClassifySingle({ onClassify }) {
   };
 
   const generateRandomEmail = () => {
-    const sender = senderPool[Math.floor(Math.random() * senderPool.length)];
     const email = emailSamples[Math.floor(Math.random() * emailSamples.length)];
-    setFormData({ from: sender, subject: email.subject, body: email.body });
+    setFormData({
+      from: email.from || "Unknown Sender",
+      subject: email.subject,
+      body: email.body,
+    });
     setResult(null);
   };
 
@@ -197,7 +284,7 @@ export default function ClassifySingle({ onClassify }) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wider">
